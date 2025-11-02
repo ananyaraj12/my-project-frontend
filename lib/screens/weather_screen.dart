@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:weather_icons/weather_icons.dart';
-import '../services/weather_services.dart';
-// ignore: depend_on_referenced_packages
-import 'package:intl/intl.dart'; // 📌 For time formatting
+import 'package:epic_nomads/services/weather_services.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -12,168 +9,150 @@ class WeatherScreen extends StatefulWidget {
 }
 
 class _WeatherScreenState extends State<WeatherScreen> {
-  final WeatherService _weatherService = WeatherService();
-  Map<String, dynamic>? _weatherData;
-  late String destination;
-  IconData _weatherIcon = WeatherIcons.day_sunny;
-  bool _isLoading = true;
+  final TextEditingController _controller = TextEditingController();
+  Map<String, dynamic>? weatherData;
+  bool isLoading = false;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    destination = ModalRoute.of(context)!.settings.arguments as String;
-    _getWeather();
-  }
-
-  Future<void> _getWeather() async {
-    final data = await _weatherService.fetchWeather(destination);
+  Future<void> fetchWeather(String city) async {
+    setState(() => isLoading = true);
+    final data = await WeatherService().fetchWeather(city);
     setState(() {
-      _weatherData = data;
-      _isLoading = false;
-      _weatherIcon = _getWeatherIcon(data?['weather'][0]['main'] ?? '');
+      weatherData = data;
+      isLoading = false;
     });
-  }
-
-  IconData _getWeatherIcon(String condition) {
-    switch (condition.toLowerCase()) {
-      case 'clouds':
-        return WeatherIcons.cloud;
-      case 'rain':
-        return WeatherIcons.rain;
-      case 'drizzle':
-        return WeatherIcons.showers;
-      case 'thunderstorm':
-        return WeatherIcons.thunderstorm;
-      case 'snow':
-        return WeatherIcons.snow;
-      case 'mist':
-      case 'fog':
-        return WeatherIcons.fog;
-      default:
-        return WeatherIcons.day_sunny;
-    }
-  }
-
-  String _formatTime(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
-    return DateFormat('h:mm a').format(date);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          //Image.asset('assets/bg.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.3)),
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: Colors.white))
-          else if (_weatherData != null)
-            _buildWeatherView()
-          else
-            const Center(
-              child: Text(
-                'Could not load weather data.',
-                style: TextStyle(color: Colors.white, fontSize: 18),
+      backgroundColor: const Color(0xFFF9EFEA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFDAB9A3),
+        centerTitle: true,
+        title: const Text(
+          'Weather Forecast',
+          style: TextStyle(
+            color: Color(0xFF4A3C31),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            const Text(
+              'Check Weather by City',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF4A3C31),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeatherView() {
-    final temp = _weatherData!['main']['temp'];
-    final desc = _weatherData!['weather'][0]['description'];
-    final city = _weatherData!['name'];
-
-    final sunrise = _weatherData!['sys']['sunrise'];
-    final sunset = _weatherData!['sys']['sunset'];
-
-    return SafeArea(
-      child: Column(
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const Spacer(),
-              const Text(
-                'Weather',
-                style: TextStyle(
-                  fontSize: 22,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+            const SizedBox(height: 20),
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: 'Enter city name...',
+                filled: true,
+                fillColor: const Color(0xFFF3E7E0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
                 ),
               ),
-              const Spacer(flex: 2),
-            ],
-          ),
-          const SizedBox(height: 50),
-          Icon(_weatherIcon, size: 80, color: Colors.white),
-          const SizedBox(height: 15),
-          Text(
-            city,
-            style: const TextStyle(
-              fontSize: 30,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
             ),
-          ),
-          Text(
-            '$temp °C',
-            style: const TextStyle(fontSize: 26, color: Colors.white),
-          ),
-          Text(
-            desc.toUpperCase(),
-            style: const TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-          const SizedBox(height: 30),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Column(
-                children: [
-                  const Icon(
-                    WeatherIcons.sunrise,
-                    color: Colors.orangeAccent,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _formatTime(sunrise),
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  const Text(
-                    'Sunrise',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDAB9A3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               ),
-              Column(
-                children: [
-                  const Icon(
-                    WeatherIcons.sunset,
-                    color: Colors.deepOrange,
-                    size: 40,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _formatTime(sunset),
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  const Text(
-                    'Sunset',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
+              onPressed: () {
+                if (_controller.text.isNotEmpty) {
+                  fetchWeather(_controller.text);
+                }
+              },
+              child: const Text(
+                'Check Weather',
+                style: TextStyle(
+                  color: Color(0xFF4A3C31),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 30),
+            if (isLoading)
+              const CircularProgressIndicator(color: Color(0xFF4A3C31))
+            else if (weatherData != null)
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1E0D3),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.brown.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(4, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${weatherData!['name']}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4A3C31),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${weatherData!['main']['temp']}°C',
+                        style: const TextStyle(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6B5B50),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${weatherData!['weather'][0]['description']}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Color(0xFF4A3C31),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Humidity: ${weatherData!['main']['humidity']}%  |  Wind: ${weatherData!['wind']['speed']} m/s',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF6B5B50),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              const Text(
+                'No weather data yet. Try searching a city!',
+                style: TextStyle(color: Color(0xFF6B5B50)),
+              ),
+          ],
+        ),
       ),
     );
   }

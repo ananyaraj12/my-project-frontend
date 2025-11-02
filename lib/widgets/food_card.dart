@@ -1,5 +1,7 @@
+
+import 'package:epic_nomads/services/bookmarked_service.dart';
 import 'package:flutter/material.dart';
-import '../services/bookmark_service.dart';
+//import '../services/bookmarked_service.dart';
 
 class FoodCard extends StatelessWidget {
   final Map<String, String> food;
