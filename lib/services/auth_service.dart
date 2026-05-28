@@ -1,92 +1,135 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService extends ChangeNotifier {
-  bool _isLoggedIn = false;
-  bool _isLoading = false;
-  String? _token;
-  String? _email;
+  static const String _wifiIp = '10.71.152.119';
 
-  bool get isLoggedIn => _isLoggedIn;
-  bool get isLoading => _isLoading;
-  String? get email => _email;
+  late final String baseUrl;
 
-  final String baseUrl = "http://localhost:5000/api/auth";
-
-  Null get userName => null;
-
-  Future<void> signup(String name, String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
-    final url = Uri.parse('$baseUrl/signup');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name, 'email': email, 'password': password}),
-    );
-    _isLoading = false;
-    if (response.statusCode == 200) {
-      await login(email, password);
+  AuthService() {
+    if (kIsWeb) {
+      baseUrl = "http://localhost:5000/api/auth";
+    } else {
+      baseUrl = "http://$_wifiIp:5000/api/auth";
     }
-    notifyListeners();
   }
 
-  Future<void> login(String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
-    final url = Uri.parse('$baseUrl/login');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      _token = data['token'];
-      _email = email;
-      _isLoggedIn = true;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', _token!);
-      await prefs.setString('email', email);
-    }
-    _isLoading = false;
-    notifyListeners();
-  }
+  String? token;
+  String? email;
+  String? name;
 
-  Future<void> forgotPassword(String email) async {
-    _isLoading = true;
-    notifyListeners();
-    final url = Uri.parse('$baseUrl/forgot-password');
-    await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email}),
-    );
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> logout() async {
-    _token = null;
-    _email = null;
-    _isLoggedIn = false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('email');
-    notifyListeners();
-  }
+  bool get isLoggedIn => token != null;
 
   Future<void> checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedToken = prefs.getString('token');
-    final savedEmail = prefs.getString('email');
-    if (savedToken != null && savedEmail != null) {
-      _token = savedToken;
-      _email = savedEmail;
-      _isLoggedIn = true;
-    }
+    token = prefs.getString('token');
+    email = prefs.getString('email');
+    name = prefs.getString('name');
     notifyListeners();
+  }
+
+  Future<void> _saveUser(String t, String e, String n) async {
+    token = t;
+    email = e;
+    name = n;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', t);
+    await prefs.setString('email', e);
+    await prefs.setString('name', n);
+    notifyListeners();
+  }
+
+  Future<void> _clearUser() async {
+    token = null;
+    email = null;
+    name = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('email');
+    await prefs.remove('name');
+    notifyListeners();
+  }
+
+  Future<String?> signup(
+    String fullName,
+    String userEmail,
+    String password,
+  ) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$baseUrl/signup"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": fullName,
+          "email": userEmail,
+          "password": password,
+        }),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 201) {
+        return null;
+      } else {
+        return data["message"]?.toString() ?? "Signup failed";
+      }
+    } catch (e) {
+      return "Unable to connect to server";
+    }
+  }
+
+  Future<String?> login(String userEmail, String password) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$baseUrl/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": userEmail, "password": password}),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        final t = data["token"];
+        final user = data["user"];
+
+        if (t is String && user is Map) {
+          final e = user["email"]?.toString() ?? "";
+          final n = user["name"]?.toString() ?? "";
+          if (e.isNotEmpty && n.isNotEmpty) {
+            await _saveUser(t, e, n);
+          }
+        }
+        return null;
+      } else {
+        return data["message"]?.toString() ?? "Login failed";
+      }
+    } catch (e) {
+      return "Unable to connect to server";
+    }
+  }
+
+  Future<String?> forgotPassword(String userEmail) async {
+    try {
+      final res = await http.post(
+        Uri.parse("$baseUrl/forgot-password"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": userEmail}),
+      );
+
+      if (res.statusCode == 200) {
+        return null;
+      }
+
+      final data = jsonDecode(res.body);
+      return data["message"]?.toString() ?? "Something went wrong";
+    } catch (e) {
+      return "Unable to connect to server";
+    }
+  }
+
+  Future<void> logout() async {
+    await _clearUser();
   }
 }

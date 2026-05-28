@@ -4,9 +4,48 @@ import '../services/auth_service.dart';
 import 'weather_screen.dart';
 import 'trip_planner_screen.dart';
 import 'food_suggestions_screen.dart';
+import 'profile_screen.dart';
+import 'login_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+
+
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  int currentIndex = 0;
+  late AnimationController controller;
+  late Animation<double> fade;
+
+  final pages =  [
+    _Dashboard(),
+    WeatherScreen(),
+    TripPlannerScreen(),
+    FoodSuggestionsScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    fade = CurvedAnimation(parent: controller, curve: Curves.easeInOut);
+    controller.forward();
+  }
+
+  void switchTab(int index) {
+    controller.reset();
+    setState(() => currentIndex = index);
+    controller.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +54,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9EFEA),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFDAB9A3),
         title: const Text(
           'Epic Nomads',
           style: TextStyle(
@@ -22,137 +62,177 @@ class HomeScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFFDAB9A3),
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFF4A3C31)),
-            onPressed: () {
-              auth.logout();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out successfully')),
+            onPressed: () async {
+              await auth.logout();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
               );
             },
-          ),
+          )
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${auth.email ?? 'Traveler'} 👋',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF4A3C31),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Where will your next journey take you?',
-              style: TextStyle(fontSize: 16, color: Color(0xFF6B5B50)),
-            ),
-            const SizedBox(height: 40),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 25,
-                crossAxisSpacing: 25,
-                children: [
-                  _buildTile(
-                    context,
-                    icon: Icons.cloud,
-                    title: 'Weather',
-                    color: const Color(0xFFF1E0D3),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const WeatherScreen()),
-                    ),
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.restaurant_menu,
-                    title: 'Food Finder',
-                    color: const Color(0xFFF1E0D3),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FoodSuggestionsScreen(),
-                      ),
-                    ),
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.map_rounded,
-                    title: 'Trip Planner',
-                    color: const Color(0xFFF1E0D3),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TripPlannerScreen(),
-                      ),
-                    ),
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.bookmark_rounded,
-                    title: 'Bookmarks',
-                    color: const Color(0xFFF1E0D3),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Bookmarks coming soon!')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      body: FadeTransition(
+        opacity: fade,
+        child: pages[currentIndex],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: switchTab,
+        backgroundColor: const Color(0xFFF1E0D3),
+        selectedItemColor: const Color(0xFF4A3C31),
+        unselectedItemColor: const Color(0xFF6B5B50),
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.cloud_rounded),
+            label: 'Weather',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_rounded),
+            label: 'Trip',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant_rounded),
+            label: 'Food',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      splashColor: Colors.brown.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.brown.withOpacity(0.1),
-              blurRadius: 6,
-              offset: const Offset(2, 4),
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class _Dashboard extends StatelessWidget {
+  const _Dashboard();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Hi ${auth.name ?? "Nomad"} 👋",
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4A3C31),
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 50, color: const Color(0xFF4A3C31)),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF4A3C31),
-              ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            "Ready for your next journey?",
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF6B5B50),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 32),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 20,
+              crossAxisSpacing: 20,
+              children: const [
+                _QuickCard(
+                  icon: Icons.cloud_outlined,
+                  title: "Weather",
+                  subtitle: "Check forecast",
+                ),
+                _QuickCard(
+                  icon: Icons.map_outlined,
+                  title: "Trip Planner",
+                  subtitle: "Plan journeys",
+                ),
+                _QuickCard(
+                  icon: Icons.restaurant_outlined,
+                  title: "Food Finder",
+                  subtitle: "Nearby cafes",
+                ),
+                _QuickCard(
+                  icon: Icons.person_outline,
+                  title: "Profile",
+                  subtitle: "Saved trips",
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _QuickCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1E0D3),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.brown.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          )
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 40, color: const Color(0xFF4A3C31)),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4A3C31),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF6B5B50),
+            ),
+          ),
+        ],
       ),
     );
   }

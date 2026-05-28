@@ -1,59 +1,69 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-const BACKEND_BASE = 'http://localhost:5000';
-
 class ApiService {
-  static Future<Map<String, dynamic>?> fetchWeather(String city) async {
-    final url = Uri.parse('$BACKEND_BASE/api/weather/$city');
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      print('Weather Error: ${res.body}');
-    }
-    return null;
+  static const String _wifiIp = '10.71.152.119';
+
+  static final String _base = kIsWeb
+      ? 'http://localhost:5000'
+      : 'http://$_wifiIp:5000';
+  static Future<Map<String, double>?> fetchCityCoordinates(String city) async {
+    final uri = Uri.parse(
+      'https://nominatim.openstreetmap.org/search?q=$city&format=json&limit=1',
+    );
+
+    final res = await http.get(
+      uri,
+      headers: {'User-Agent': 'epic-nomads-app', 'Accept': 'application/json'},
+    );
+
+    if (res.statusCode != 200) return null;
+
+    final data = jsonDecode(res.body);
+    if (data == null || data.isEmpty) return null;
+
+    return {
+      'lat': double.parse(data[0]['lat']),
+      'lon': double.parse(data[0]['lon']),
+    };
   }
 
-  static Future<List<dynamic>?> fetchFood(String city) async {
-    final url = Uri.parse('$BACKEND_BASE/api/food/$city');
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      print('Food Error: ${res.body}');
+  static Future<Map<String, dynamic>?> fetchWeather(String city) async {
+    try {
+      final res = await http.get(Uri.parse('$_base/api/weather/$city'));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      debugPrint('Weather error: $e');
     }
     return null;
   }
 
   static Future<List<dynamic>?> fetchTourist(String city) async {
-    final url = Uri.parse('$BACKEND_BASE/api/tourist/$city');
-    final res = await http.get(url);
-    if (res.statusCode == 200) {
-      return jsonDecode(res.body);
-    } else {
-      print('Tourist Error: ${res.body}');
+    try {
+      final res = await http.get(Uri.parse('$_base/api/tourist/$city'));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      debugPrint('Tourist error: $e');
     }
     return null;
   }
 
-  static Future<bool> signup(String name, String email, String password) async {
-    final url = Uri.parse('$BACKEND_BASE/api/auth/signup');
-    final res = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name, 'email': email, 'password': password}),
-    );
-    return res.statusCode == 201;
-  }
-
-  static Future<bool> login(String email, String password) async {
-    final url = Uri.parse('$BACKEND_BASE/api/auth/login');
-    final res = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    return res.statusCode == 200;
+  static Future<List<dynamic>?> fetchFoodNearby(double lat, double lon) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/api/food/nearby?lat=$lat&lon=$lon'),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      debugPrint('Food error: $e');
+    }
+    return null;
   }
 }
